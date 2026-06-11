@@ -1,3 +1,8 @@
+# ---------------------------------
+# backend-despachos: Deployment + Service + HPA
+# ---------------------------------
+
+# Deployment: define réplicas y variables para conectar a MySQL.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -5,21 +10,32 @@ metadata:
   labels:
     app: backend-despachos
 spec:
-  replicas: 2
+  replicas: 2 # Inicialmente 2 réplicas
+
   selector:
     matchLabels:
       app: backend-despachos
+
   template:
     metadata:
       labels:
         app: backend-despachos
+
     spec:
       containers:
         - name: backend-despachos
+
+          # Imagen del backend en ECR (placeholder para reemplazo en CI/CD)
           image: ECR_IMAGE_URI_PLACEHOLDER
+
+          # Siempre intenta descargar la imagen más reciente al crear Pods.
           imagePullPolicy: Always
+
+          # Puerto del contenedor.
           ports:
             - containerPort: 8081
+
+          # Recursos (requests/limits) para scheduling y control.
           resources:
             requests:
               cpu: "100m"
@@ -27,21 +43,28 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
+
+          # Variables de entorno para apuntar a la base de datos.
           env:
             - name: DB_ENDPOINT
-              value: "mysql-despachos"
+              value: "mysql-despachos" # Service DNS del MySQL
             - name: DB_PORT
               value: "3306"
             - name: DB_NAME
               value: "despachos_db"
             - name: DB_USERNAME
               value: "root"
+
+            # Contraseña desde Secret.
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: db-passwords
                   key: mysql-root-password
+
 ---
+
+# Service: acceso interno al backend dentro del cluster.
 apiVersion: v1
 kind: Service
 metadata:
@@ -49,11 +72,16 @@ metadata:
 spec:
   selector:
     app: backend-despachos
+
   ports:
     - port: 8081
       targetPort: 8081
+
   type: ClusterIP
+
 ---
+
+# HPA: escalado automático según CPU.
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -63,8 +91,10 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: backend-despachos
+
   minReplicas: 2
   maxReplicas: 5
+
   metrics:
     - type: Resource
       resource:

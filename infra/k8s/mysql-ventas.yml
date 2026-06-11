@@ -1,31 +1,48 @@
+# ---------------------------------
+# MySQL Ventas: Deployment + Service
+# ---------------------------------
+
+# Deployment del contenedor MySQL.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mysql-ventas
 spec:
-  replicas: 1
+  replicas: 1 # Solo 1 instancia (no hay statefulset en este ejemplo)
+
+  # Selección de pods por label.
   selector:
     matchLabels:
       app: mysql-ventas
+
   template:
     metadata:
       labels:
         app: mysql-ventas
+
     spec:
       containers:
         - name: mysql
           image: mysql:8.0
+
+          # Puerto interno MySQL.
           ports:
             - containerPort: 3306
+
+          # Variables necesarias para inicializar MySQL.
           env:
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: db-passwords
                   key: mysql-root-password
+
             - name: MYSQL_DATABASE
-              value: ventas_db
+              value: ventas_db # Nombre de la DB creada/inicializada
+
 ---
+
+# Service para exponer MySQL dentro del cluster.
 apiVersion: v1
 kind: Service
 metadata:
@@ -33,7 +50,9 @@ metadata:
 spec:
   selector:
     app: mysql-ventas
+
   ports:
     - port: 3306
       targetPort: 3306
-  type: ClusterIP
+
+  type: ClusterIP # Acceso interno (DNS por nombre del Service)

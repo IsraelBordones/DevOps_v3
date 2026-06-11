@@ -1,31 +1,46 @@
+# ---------------------------------
+# MySQL Despachos: Deployment + Service
+# ---------------------------------
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mysql-despachos
 spec:
-  replicas: 1
+  replicas: 1 # Un solo pod MySQL
+
   selector:
     matchLabels:
       app: mysql-despachos
+
   template:
     metadata:
       labels:
         app: mysql-despachos
+
     spec:
       containers:
         - name: mysql
           image: mysql:8.0
+
+          # Puerto interno MySQL.
           ports:
             - containerPort: 3306
+
+          # Variables necesarias para inicializar MySQL.
           env:
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: db-passwords
                   key: mysql-root-password
+
             - name: MYSQL_DATABASE
-              value: despachos_db
+              value: despachos_db # Nombre de la DB
+
 ---
+
+# Service interno (ClusterIP) para que los backends accedan por DNS.
 apiVersion: v1
 kind: Service
 metadata:
@@ -33,7 +48,9 @@ metadata:
 spec:
   selector:
     app: mysql-despachos
+
   ports:
     - port: 3306
       targetPort: 3306
+
   type: ClusterIP

@@ -1,69 +1,83 @@
+# ==============================
+# Terraform: Infra AWS (EKS + ECR)
+# ==============================
+
+# 0) Providers
+# Define qué proveedores se usarán (en este caso AWS).
 terraform {
   required_providers {
     aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
+      source  = "hashicorp/aws" # Origen del provider
+      version = "~> 5.0"        # Rango de versión
     }
   }
 }
 
+# 1) Configuración del provider AWS
 provider "aws" {
-  region = "us-east-1"
+  region = "us-east-1" # Región donde se crea toda la infraestructura
 }
 
-# Asumiendo que usas AWS Academy / Learner Lab
+# 2) Rol IAM existente
+# Se asume que ya existe un rol llamado "LabRole" (Learner Lab / Academy).
+# Se usa su ARN para el cluster y node group.
 data "aws_iam_role" "labrole" {
   name = "LabRole"
 }
 
-# 1. Redes (VPC, Subnets, IGW, Route Tables)
+# 3) Redes (VPC, Subnets, Internet Gateway, Route Tables)
 resource "aws_vpc" "eks_vpc" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_support   = true
-  enable_dns_hostnames = true
-  tags = { Name = "innovatech-vpc" }
+  cidr_block           = "10.0.0.0/16"  # Rango de IPs para la VPC
+  enable_dns_support   = true            # Habilita DNS interno
+  enable_dns_hostnames = true           # Habilita hostnames
+  tags = { Name = "innovatech-vpc" }   # Etiquetas
 }
 
+# Subnet pública 1 (us-east-1a)
 resource "aws_subnet" "eks_subnet_1" {
   vpc_id                  = aws_vpc.eks_vpc.id
   cidr_block              = "10.0.10.0/24"
   availability_zone       = "us-east-1a"
   map_public_ip_on_launch = true
-  
-  # ESTO ES CLAVE: EKS necesita esta etiqueta para saber dónde crear los LoadBalancers públicos
-  tags = { 
+
+  # Etiqueta clave para que EKS sepa dónde crear LoadBalancers públicos
+  tags = {
     Name = "innovatech-subnet-1"
-    "kubernetes.io/role/elb" = "1" 
-  } 
+    "kubernetes.io/role/elb" = "1"
+  }
 }
 
+# Subnet pública 2 (us-east-1b)
 resource "aws_subnet" "eks_subnet_2" {
   vpc_id                  = aws_vpc.eks_vpc.id
   cidr_block              = "10.0.20.0/24"
   availability_zone       = "us-east-1b"
   map_public_ip_on_launch = true
-  
-  # ESTO ES CLAVE: EKS necesita esta etiqueta para saber dónde crear los LoadBalancers públicos
-  tags = { 
+
+  # Etiqueta clave para EKS
+  tags = {
     Name = "innovatech-subnet-2"
-    "kubernetes.io/role/elb" = "1" 
-  } 
+    "kubernetes.io/role/elb" = "1"
+  }
 }
 
+# Internet Gateway para salida a Internet
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.eks_vpc.id
   tags   = { Name = "innovatech-igw" }
 }
 
+# Route table con ruta por defecto hacia el IGW
 resource "aws_route_table" "rt" {
   vpc_id = aws_vpc.eks_vpc.id
   route {
-    cidr_block = "0.0.0.0/0"
+    cidr_block = "0.0.0.0/0"                # Tráfico a cualquier destino
     gateway_id = aws_internet_gateway.igw.id
   }
   tags = { Name = "innovatech-route-table" }
 }
 
+# Asociaciones de route table con cada subnet
 resource "aws_route_table_association" "rta_1" {
   subnet_id      = aws_subnet.eks_subnet_1.id
   route_table_id = aws_route_table.rt.id
@@ -74,37 +88,42 @@ resource "aws_route_table_association" "rta_2" {
   route_table_id = aws_route_table.rt.id
 }
 
-# 2. Clúster EKS y Nodos Workers
+# 4) Clúster EKS
 resource "aws_eks_cluster" "eks" {
   name     = "innovatech-cluster"
   role_arn = data.aws_iam_role.labrole.arn
+
   vpc_config {
+    # Subnets donde se desplegarán recursos del clúster
     subnet_ids = [aws_subnet.eks_subnet_1.id, aws_subnet.eks_subnet_2.id]
   }
 }
 
+# 5) Node group (workers) del clúster
 resource "aws_eks_node_group" "workers" {
   cluster_name    = aws_eks_cluster.eks.name
   node_group_name = "workers"
   node_role_arn   = data.aws_iam_role.labrole.arn
-  subnet_ids      = [aws_subnet.eks_subnet_1.id, aws_subnet.eks_subnet_2.id]
-  
+
+  subnet_ids = [aws_subnet.eks_subnet_1.id, aws_subnet.eks_subnet_2.id]
+
+  # Autoscaling del número de nodos
   scaling_config {
     desired_size = 2
     max_size     = 3
     min_size     = 1
   }
-  
-  # t3.medium aguanta bien para 3 microservicios sin que se te caiga el clúster
+
+  # Tipo de instancia para los workers
   instance_types = ["t3.medium"]
   capacity_type  = "ON_DEMAND"
 }
 
-# 3. Repositorios ECR (Donde guardaremos las imágenes Docker)
+# 6) Repositorios ECR para imágenes Docker
 resource "aws_ecr_repository" "backend_ventas_repo" {
   name = "backend-ventas"
-  image_scanning_configuration { scan_on_push = true }
-  force_delete = true
+  image_scanning_configuration { scan_on_push = true } # Escaneo al subir
+  force_delete = true                                   # Permite borrar repo en destroy
 }
 
 resource "aws_ecr_repository" "backend_despachos_repo" {
@@ -119,7 +138,7 @@ resource "aws_ecr_repository" "frontend_repo" {
   force_delete = true
 }
 
-# 4. Outputs (Te los dejo listos para copiarlos cuando armemos el GitHub Actions)
+# 7) Outputs (para copiar y usar en CI/CD)
 output "cluster_name" {
   value = aws_eks_cluster.eks.name
 }
@@ -135,3 +154,4 @@ output "repo_despachos_url" {
 output "repo_frontend_url" {
   value = aws_ecr_repository.frontend_repo.repository_url
 }
+

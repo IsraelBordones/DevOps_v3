@@ -1,3 +1,8 @@
+# ---------------------------------
+# backend-ventas: Deployment + Service + HPA
+# ---------------------------------
+
+# Deployment: define cuántas réplicas de la API correrán y con qué configuración.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -5,43 +10,63 @@ metadata:
   labels:
     app: backend-ventas
 spec:
-  replicas: 2
+  replicas: 2 # Mínimo inicial (y HPA puede escalar hasta 5)
+
+  # Selector: vincula este Deployment con Pods que tengan este label.
   selector:
     matchLabels:
       app: backend-ventas
+
   template:
     metadata:
       labels:
         app: backend-ventas
+
+    # Especificación del/los contenedores dentro del Pod.
     spec:
       containers:
         - name: backend-ventas
+
+          # Imagen Docker (placeholder para reemplazar por CI/CD con ECR)
           image: ECR_IMAGE_URI_PLACEHOLDER
+
+          # Siempre intenta la última imagen cuando el Pod se recrea.
           imagePullPolicy: Always
+
+          # Puerto donde escucha la aplicación.
           ports:
             - containerPort: 8080
+
+          # Recursos para scheduling y límites.
           resources:
             requests:
-              cpu: "100m"
-              memory: "256Mi"
+              cpu: "100m"      # Solicita 0.1 CPU
+              memory: "256Mi" # Solicita 256Mi
             limits:
-              cpu: "500m"
-              memory: "512Mi"
+              cpu: "500m"      # Límite 0.5 CPU
+              memory: "512Mi" # Límite 512Mi
+
+          # Variables de entorno para conectar a MySQL.
           env:
             - name: DB_ENDPOINT
-              value: "mysql-ventas"
+              value: "mysql-ventas" # Nombre del Service de MySQL en el cluster
             - name: DB_PORT
               value: "3306"
             - name: DB_NAME
               value: "ventas_db"
             - name: DB_USERNAME
               value: "root"
+
+            # Contraseña tomada de un Secret de Kubernetes.
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: db-passwords
                   key: mysql-root-password
+
 ---
+
+# Service: expone el Deployment dentro del cluster (ClusterIP).
 apiVersion: v1
 kind: Service
 metadata:
@@ -49,11 +74,16 @@ metadata:
 spec:
   selector:
     app: backend-ventas
+
   ports:
-    - port: 8080
-      targetPort: 8080
-  type: ClusterIP
+    - port: 8080         # Puerto del Service
+      targetPort: 8080  # Puerto del Pod
+
+  type: ClusterIP       # No se expone públicamente
+
 ---
+
+# HPA: escala el número de Pods según uso de CPU.
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -63,8 +93,10 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: backend-ventas
+
   minReplicas: 2
   maxReplicas: 5
+
   metrics:
     - type: Resource
       resource:

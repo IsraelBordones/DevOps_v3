@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  proyecto-db:
+    image: mysql:8.0
+    container_name: mysql_produccion
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: db_ventas_despachos
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - red-interna
+
+  service-ventas:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/devops-u2-backend-ventas:latest
+    container_name: api_ventas
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://proyecto-db:3306/db_ventas_despachos
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+    depends_on:
+      - proyecto-db
+    networks:
+      - red-interna
+
+  service-despachos:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/devops-u2-backend-despachos:latest
+    container_name: api_despachos
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://proyecto-db:3306/db_ventas_despachos
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+    depends_on:
+      - proyecto-db
+    networks:
+      - red-interna
+
+  frontend:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/devops-u2-frontend:latest
+    container_name: web_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - service-ventas
+      - service-despachos
+    networks:
+      - red-interna
+
+volumes:
+  mysql_data:
+
+networks:
+  red-interna:
+    driver: bridge

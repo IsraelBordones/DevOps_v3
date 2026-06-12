@@ -15,19 +15,19 @@ terraform {
 
 # 1) Configuración del provider AWS
 provider "aws" {
-  region = "us-east-1" # Región donde se crea toda la infraestructura
+  region = var.aws_region # Región donde se crea toda la infraestructura
 }
 
 # 2) Rol IAM existente
 # Se asume que ya existe un rol llamado "LabRole" (Learner Lab / Academy).
 # Se usa su ARN para el cluster y node group.
 data "aws_iam_role" "labrole" {
-  name = "LabRole"
+  name = var.labrole_name
 }
 
 # 3) Redes (VPC, Subnets, Internet Gateway, Route Tables)
 resource "aws_vpc" "eks_vpc" {
-  cidr_block           = "10.0.0.0/16"  # Rango de IPs para la VPC
+  cidr_block = var.vpc_cidr  # Rango de IPs para la VPC
   enable_dns_support   = true            # Habilita DNS interno
   enable_dns_hostnames = true           # Habilita hostnames
   tags = { Name = "innovatech-vpc" }   # Etiquetas
@@ -36,8 +36,8 @@ resource "aws_vpc" "eks_vpc" {
 # Subnet pública 1 (us-east-1a)
 resource "aws_subnet" "eks_subnet_1" {
   vpc_id                  = aws_vpc.eks_vpc.id
-  cidr_block              = "10.0.10.0/24"
-  availability_zone       = "us-east-1a"
+  cidr_block              = var.subnet_1_cidr
+  availability_zone         = var.subnet_1_az
   map_public_ip_on_launch = true
 
   # Etiqueta clave para que EKS sepa dónde crear LoadBalancers públicos
@@ -50,8 +50,8 @@ resource "aws_subnet" "eks_subnet_1" {
 # Subnet pública 2 (us-east-1b)
 resource "aws_subnet" "eks_subnet_2" {
   vpc_id                  = aws_vpc.eks_vpc.id
-  cidr_block              = "10.0.20.0/24"
-  availability_zone       = "us-east-1b"
+  cidr_block              = var.subnet_2_cidr
+  availability_zone       = var.subnet_2_az
   map_public_ip_on_launch = true
 
   # Etiqueta clave para EKS
@@ -90,7 +90,7 @@ resource "aws_route_table_association" "rta_2" {
 
 # 4) Clúster EKS
 resource "aws_eks_cluster" "eks" {
-  name     = "innovatech-cluster"
+  name      = var.cluster_name
   role_arn = data.aws_iam_role.labrole.arn
 
   vpc_config {
@@ -102,38 +102,38 @@ resource "aws_eks_cluster" "eks" {
 # 5) Node group (workers) del clúster
 resource "aws_eks_node_group" "workers" {
   cluster_name    = aws_eks_cluster.eks.name
-  node_group_name = "workers"
+  node_group_name = var.node_group_name
   node_role_arn   = data.aws_iam_role.labrole.arn
 
   subnet_ids = [aws_subnet.eks_subnet_1.id, aws_subnet.eks_subnet_2.id]
 
   # Autoscaling del número de nodos
   scaling_config {
-    desired_size = 2
-    max_size     = 3
-    min_size     = 1
+    desired_size = var.node_desired_size  
+                   max_size = var.node_max_size  
+                   min_size = var.node_min_size
   }
 
   # Tipo de instancia para los workers
-  instance_types = ["t3.medium"]
-  capacity_type  = "ON_DEMAND"
+  instance_types = var.node_instance_types
+  capacity_type = var.node_capacity_type
 }
 
 # 6) Repositorios ECR para imágenes Docker
 resource "aws_ecr_repository" "backend_ventas_repo" {
-  name = "backend-ventas"
+  name = var.ecr_repo_ventas
   image_scanning_configuration { scan_on_push = true } # Escaneo al subir
   force_delete = true                                   # Permite borrar repo en destroy
 }
 
 resource "aws_ecr_repository" "backend_despachos_repo" {
-  name = "backend-despachos"
+  name = var.ecr_repo_despachos
   image_scanning_configuration { scan_on_push = true }
   force_delete = true
 }
 
 resource "aws_ecr_repository" "frontend_repo" {
-  name = "frontend-app"
+  name = var.ecr_repo_frontend
   image_scanning_configuration { scan_on_push = true }
   force_delete = true
 }

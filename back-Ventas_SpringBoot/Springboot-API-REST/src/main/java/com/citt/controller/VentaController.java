@@ -20,6 +20,7 @@ import java.util.List;
 @Tag(name = "Venta", description = "Controlador para gestionar ventas")
 public class VentaController {
 
+    
     @Autowired
     private VentaService ventaService;
 

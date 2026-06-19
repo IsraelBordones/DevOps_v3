@@ -1,6 +1,6 @@
 import Navbar from "./Layouts/Navbar";
 import Footer from "./Layouts/Footer";
-/* Comentario para forzar commit*/
+/* Comentario para forzar commit 2*/
 import { PruebaCards } from "./CrudAdmin/PruebaCards";
 import Reviews from "./Layouts/Reviews";
 

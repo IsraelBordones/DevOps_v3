@@ -12,7 +12,7 @@ terraform {
   }
 }
 
-# 1) Configuración del provider AWS
+# 1) Configuracion del provider AWS
 provider "aws" {
   region = var.aws_region
 }
@@ -30,7 +30,7 @@ resource "aws_vpc" "eks_vpc" {
   tags = { Name = "innovatech-vpc" }
 }
 
-# Subnet pública 1 (us-east-1a)
+# Subnet publica 1 (us-east-1a)
 resource "aws_subnet" "eks_subnet_1" {
   vpc_id                  = aws_vpc.eks_vpc.id
   cidr_block              = var.subnet_1_cidr
@@ -42,7 +42,7 @@ resource "aws_subnet" "eks_subnet_1" {
   }
 }
 
-# Subnet pública 2 (us-east-1b)
+# Subnet publica 2 (us-east-1b)
 resource "aws_subnet" "eks_subnet_2" {
   vpc_id                  = aws_vpc.eks_vpc.id
   cidr_block              = var.subnet_2_cidr
@@ -81,11 +81,11 @@ resource "aws_route_table_association" "rta_2" {
 }
 
 # ==============================
-# 3.1) Security Group para el clúster EKS (control plane y nodos)
+# 3.1) Security Group del cluster EKS
 # ==============================
 resource "aws_security_group" "eks_sg" {
   name        = "${var.cluster_name}-sg"
-  description = "Security Group para el clúster EKS (control plane y nodos)"
+  description = "Security Group para el cluster EKS control plane y nodos"
   vpc_id      = aws_vpc.eks_vpc.id
 
   ingress {
@@ -128,7 +128,7 @@ resource "aws_security_group" "eks_sg" {
 # ==============================
 resource "aws_security_group" "frontend_sg" {
   name        = "innovatech-frontend-sg"
-  description = "Security Group para el frontend (acceso publico HTTP/HTTPS)"
+  description = "Security Group para el frontend acceso publico HTTP y HTTPS"
   vpc_id      = aws_vpc.eks_vpc.id
 
   ingress {
@@ -163,7 +163,7 @@ resource "aws_security_group" "frontend_sg" {
 # ==============================
 resource "aws_security_group" "backend_sg" {
   name        = "innovatech-backend-sg"
-  description = "Security Group para los backends (acceso solo desde el frontend)"
+  description = "Security Group para los backends acceso solo desde el frontend"
   vpc_id      = aws_vpc.eks_vpc.id
 
   ingress {
@@ -198,7 +198,7 @@ resource "aws_security_group" "backend_sg" {
 # ==============================
 resource "aws_security_group" "db_sg" {
   name        = "innovatech-db-sg"
-  description = "Security Group para MySQL (acceso solo desde el backend)"
+  description = "Security Group para MySQL acceso solo desde el backend"
   vpc_id      = aws_vpc.eks_vpc.id
 
   ingress {
@@ -221,7 +221,7 @@ resource "aws_security_group" "db_sg" {
 }
 
 # ==============================
-# 4) Clúster EKS
+# 4) Cluster EKS
 # ==============================
 resource "aws_eks_cluster" "eks" {
   name     = var.cluster_name
@@ -254,21 +254,27 @@ resource "aws_eks_node_group" "workers" {
 # 6) Repositorios ECR
 # ==============================
 resource "aws_ecr_repository" "backend_ventas_repo" {
-  name                 = var.ecr_repo_ventas
-  image_scanning_configuration { scan_on_push = true }
+  name         = var.ecr_repo_ventas
   force_delete = true
+  image_scanning_configuration {
+    scan_on_push = true
+  }
 }
 
 resource "aws_ecr_repository" "backend_despachos_repo" {
-  name                 = var.ecr_repo_despachos
-  image_scanning_configuration { scan_on_push = true }
+  name         = var.ecr_repo_despachos
   force_delete = true
+  image_scanning_configuration {
+    scan_on_push = true
+  }
 }
 
 resource "aws_ecr_repository" "frontend_repo" {
-  name                 = var.ecr_repo_frontend
-  image_scanning_configuration { scan_on_push = true }
+  name         = var.ecr_repo_frontend
   force_delete = true
+  image_scanning_configuration {
+    scan_on_push = true
+  }
 }
 
 # ==============================

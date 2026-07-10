@@ -95,7 +95,8 @@ resource "aws_eks_cluster" "eks" {
 
   vpc_config {
     # Subnets donde se desplegarán recursos del clúster
-    subnet_ids = [aws_subnet.eks_subnet_1.id, aws_subnet.eks_subnet_2.id]
+    subnet_ids         = [aws_subnet.eks_subnet_1.id, aws_subnet.eks_subnet_2.id]
+    security_group_ids = [aws_security_group.eks_sg.id]
   }
 }
 
@@ -142,6 +143,52 @@ resource "aws_ecr_repository" "frontend_repo" {
 output "cluster_name" {
   value = aws_eks_cluster.eks.name
 }
+
+
+# 3.1) Security Group del clúster EKS
+resource "aws_security_group" "eks_sg" {
+  name        = "${var.cluster_name}-sg"
+  description = "Security Group para el clúster EKS (control plane y nodos)"
+  vpc_id      = aws_vpc.eks_vpc.id
+
+  # Entrada: HTTP/HTTPS público (frontend vía LoadBalancer)
+  ingress {
+    description = "HTTP desde Internet"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "HTTPS desde Internet"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Entrada: comunicación interna entre nodos/pods del clúster
+  ingress {
+    description = "Trafico interno entre nodos del cluster"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    self        = true
+  }
+
+  # Salida: sin restricciones
+  egress {
+    description = "Salida sin restricciones"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "${var.cluster_name}-sg" }
+}
+
 
 output "repo_ventas_url" {
   value = aws_ecr_repository.backend_ventas_repo.repository_url

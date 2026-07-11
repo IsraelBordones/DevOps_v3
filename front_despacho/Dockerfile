@@ -24,6 +24,7 @@ RUN npm run build
 # - Además incluye un nginx.conf que hace reverse-proxy hacia los backends.
 FROM nginx:stable-alpine
 
+
 # Reemplaza la config default de Nginx.
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
@@ -36,3 +37,4 @@ EXPOSE 80
 # Mantiene Nginx corriendo en foreground.
 CMD ["nginx", "-g", "daemon off;"]
 
+# deploy: video demostracion

@@ -20,6 +20,7 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:17-jdk
 WORKDIR /app
 
+
 # Copia el jar generado desde la etapa anterior.
 COPY --from=build /app/target/*.jar app.jar
 
@@ -29,3 +30,4 @@ EXPOSE 8080
 # Comando para iniciar la app Spring Boot.
 ENTRYPOINT ["java", "-jar", "app.jar"]
 
+# deploy: video demostracion

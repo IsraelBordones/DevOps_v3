@@ -21,6 +21,7 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
+
 # Seguridad: crea un usuario no-root.
 # Esto evita ejecutar el proceso como root dentro del contenedor.
 RUN addgroup -S devopsgroup && adduser -S devopsuser -G devopsgroup
@@ -35,3 +36,4 @@ EXPOSE 8081
 # Punto de entrada: ejecuta el jar Spring Boot.
 ENTRYPOINT ["java", "-jar", "app.jar"]
 
+# deploy: video demostracion
